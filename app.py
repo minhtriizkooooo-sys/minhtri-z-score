@@ -5,22 +5,20 @@ from scipy import stats
 import plotly.express as px
 import io
 import base64
+import os
 
 # ==========================
 # Cấu hình trang
 # ==========================
 st.set_page_config(page_title="Phân Tích Điểm Bất Thường", layout="wide", page_icon="📊")
 
-# Intro video fullscreen (with fixes)
+# Intro video fullscreen (using external URL to avoid Render timeout)
+video_url = "https://raw.githubusercontent.com/minhtriizkooooo-sys/minhtri-z-score/main/test.mp4"  # Replace with your actual GitHub raw URL
 try:
-    video_file = open("test.mp4", "rb")
-    video_bytes = video_file.read()
-    video_file.close()
-    video_base64 = base64.b64encode(video_bytes).decode()
     st.markdown(f"""
     <div id="video-container" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:black; z-index:9999; display:flex; align-items:center; justify-content:center;">
         <video id="intro-video" autoplay playsinline muted style="max-width:100%; max-height:100%;">
-            <source src="data:video/mp4;base64,{video_base64}" type="video/mp4">
+            <source src="{video_url}" type="video/mp4">
             Your browser does not support the video tag.
         </video>
     </div>
@@ -48,12 +46,10 @@ try:
         }});
     </script>
     """, unsafe_allow_html=True)
-except FileNotFoundError:
-    st.warning("File test.mp4 not found. Skipping intro video.")
 except Exception as e:
     st.error(f"Video load error: {e}. Skipping intro.")
 
-# Theme selection (rest of your code unchanged)
+# Theme selection
 theme = st.selectbox("Chọn theme", ["Original", "Castorice", "TealCoral", "VibrantOrange"])
 
 if theme == "Original":
@@ -223,91 +219,4 @@ if uploaded_file is not None:
     if not student_col:
         st.error("Không tìm thấy cột 'MaHS'.")
         st.stop()
-    df['MaHS'] = df[student_col[0]]
-
-    # Chọn các cột môn học
-    subject_cols = [c for c in df.columns if c not in ['MaHS','Lop']]
-    if len(subject_cols)==0:
-        st.error("Không tìm thấy cột điểm môn học.")
-        st.stop()
-
-    # Multi chọn lớp + môn
-    classes = st.multiselect("Chọn lớp để lọc", sorted(df['Lop'].unique()), default=sorted(df['Lop'].unique()))
-    subjects = st.multiselect("Chọn môn để phân tích", subject_cols, default=subject_cols)
-
-    df_filtered = df[df['Lop'].isin(classes)].copy()
-    if df_filtered.empty:
-        st.warning("Không có dữ liệu cho lớp được chọn.")
-        st.stop()
-
-    # Tính Z-score riêng từng môn
-    for subj in subjects:
-        df_filtered[f'Z_{subj}'] = stats.zscore(df_filtered[subj].fillna(0))
-        df_filtered[f'Highlight_{subj}'] = df_filtered[f'Z_{subj}'].abs() > z_threshold
-
-    # ==========================
-    # Bảng dữ liệu
-    # ==========================
-    st.subheader("📋 Bảng điểm gốc và bất thường")
-    col1, col2 = st.columns([3,1])
-
-    with col1:
-        st.write("**Bảng gốc học sinh**")
-        st.dataframe(df_filtered[['MaHS','Lop']+subjects], use_container_width=True)
-
-        # Tạo bảng bất thường
-        anomaly_cols = ['MaHS','Lop'] + [subj for subj in subjects]
-        anomalies = df_filtered.copy()
-        anomalies = anomalies[anomalies[[f'Highlight_{subj}' for subj in subjects]].any(axis=1)]
-        st.write("**Học sinh bất thường**")
-        st.dataframe(anomalies[anomaly_cols], use_container_width=True)
-
-        # Download CSV
-        csv_buffer = io.StringIO()
-        anomalies.to_csv(csv_buffer, index=False, encoding='utf-8')
-        st.download_button("📥 Xuất CSV học sinh bất thường", csv_buffer.getvalue(), file_name="Students_Anomalies.csv")
-
-    # ==========================
-    # Biểu đồ cột tổng học sinh vs học sinh bất thường theo lớp
-    # ==========================
-    st.subheader("📊 Biểu đồ cột theo lớp")
-    class_summary = df_filtered.groupby('Lop').size().reset_index(name='Tổng học sinh')
-    anomaly_count = anomalies.groupby('Lop').size().reset_index(name='Học sinh bất thường')
-    summary = pd.merge(class_summary, anomaly_count, on='Lop', how='left').fillna(0)
-
-    fig_col = px.bar(summary, x='Lop', y=['Tổng học sinh','Học sinh bất thường'],
-                     barmode='group', color_discrete_map={'Tổng học sinh':primary_color,'Học sinh bất thường':anomaly_color},
-                     labels={'value':'Số học sinh','Lop':'Lớp'}, title="Tổng học sinh & Học sinh bất thường theo lớp")
-    st.plotly_chart(fig_col, use_container_width=True)
-
-    # ==========================
-    # Scatter & Histogram từng môn
-    # ==========================
-    st.subheader("📈 Scatter & Histogram theo môn")
-    for subj in subjects:
-        st.markdown(f"### {subj}")
-
-        # Scatter
-        fig_scat = px.scatter(df_filtered, x='MaHS', y=subj, color=f'Z_{subj}',
-                              color_continuous_scale='RdYlGn_r', 
-                              size=df_filtered[f'Z_{subj}'].abs(),
-                              size_max=20,
-                              hover_data={'MaHS':True, subj:True, f'Z_{subj}':True})
-        st.plotly_chart(fig_scat, use_container_width=True)
-
-        # Histogram
-        fig_hist = px.histogram(df_filtered, x=subj, nbins=20, color=f'Highlight_{subj}',
-                                color_discrete_map={True:hist_anom, False:hist_normal},
-                                labels={'count':'Số học sinh'})
-        st.plotly_chart(fig_hist, use_container_width=True)
-
-# ==========================
-# Footer
-# ==========================
-st.markdown("""
-<div class="footer">
-    <p><b>Nhóm Thực Hiện:</b> Lại Nguyễn Minh Trí và những người bạn</p>
-    <p>📞 Liên hệ: 0908-083566 | 📧 Email: laingminhtri@gmail.com</p>
-    <p>© 2025 Trường THPT Marie Curie - Dự án Phân Tích Điểm Bất Thường</p>
-</div>
-""", unsafe_allow_html=True)
+    df['MaHS'] = df[student
