@@ -10,29 +10,73 @@ import io
 # ==========================
 st.set_page_config(page_title="Phân Tích Điểm Bất Thường", layout="wide", page_icon="📊")
 
-# CSS tùy chỉnh
-st.markdown("""
-<style>
-    .main { background-color: #f0f2f6; }
-    .stButton>button { background-color: #4CAF50; color: white; border-radius: 5px; }
-    .stFileUploader>label { font-weight: bold; }
-    .css-1d391kg { background-color: #ffffff; border-radius: 10px; padding: 20px; }
-    h1 { color: #2c3e50; }
-    h2 { color: #34495e; }
-    .stAlert { border-radius: 5px; }
-    footer { visibility: hidden; }
-    .footer {
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        background-color: #2c3e50;
-        color: white;
-        text-align: center;
-        padding: 10px;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Intro video
+try:
+    with open("test.mp4", "rb") as video_file:
+        video_bytes = video_file.read()
+    st.video(video_bytes)
+except FileNotFoundError:
+    st.warning("File test.mp4 not found. Skipping intro video.")
+
+# Theme selection
+theme = st.selectbox("Chọn theme", ["Original", "Castorice"])
+
+if theme == "Original":
+    css = """
+    <style>
+        .main { background-color: #f0f2f6; }
+        .stButton>button { background-color: #4CAF50; color: white; border-radius: 5px; }
+        .stFileUploader>label { font-weight: bold; }
+        .css-1d391kg { background-color: #ffffff; border-radius: 10px; padding: 20px; }
+        h1 { color: #2c3e50; }
+        h2 { color: #34495e; }
+        .stAlert { border-radius: 5px; }
+        footer { visibility: hidden; }
+        .footer {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            background-color: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 10px;
+        }
+    </style>
+    """
+    primary_color = "#4CAF50"
+    anomaly_color = "#FF5252"
+    hist_normal = "#4CAF50"
+    hist_anom = "#FF0000"
+else:  # Castorice theme with lilac/purple colors
+    css = """
+    <style>
+        .main { background-color: #e6e6fa; }  /* Lavender */
+        .stButton>button { background-color: #c8a2c8; color: white; border-radius: 5px; }  /* Lilac */
+        .stFileUploader>label { font-weight: bold; }
+        .css-1d391kg { background-color: #f3e5f5; border-radius: 10px; padding: 20px; }  /* Light purple */
+        h1 { color: #4b0082; }  /* Indigo */
+        h2 { color: #6a1b9a; }  /* Purple */
+        .stAlert { border-radius: 5px; }
+        footer { visibility: hidden; }
+        .footer {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            background-color: #4b0082;  /* Indigo */
+            color: white;
+            text-align: center;
+            padding: 10px;
+        }
+    </style>
+    """
+    primary_color = "#c8a2c8"  # Lilac
+    anomaly_color = "#9370db"  # Medium purple for anomalies
+    hist_normal = "#dda0dd"  # Plum
+    hist_anom = "#4b0082"  # Indigo
+
+st.markdown(css, unsafe_allow_html=True)
 
 # ==========================
 # Header logo
@@ -144,7 +188,7 @@ if uploaded_file is not None:
     summary = pd.merge(class_summary, anomaly_count, on='Lop', how='left').fillna(0)
 
     fig_col = px.bar(summary, x='Lop', y=['Tổng học sinh','Học sinh bất thường'],
-                     barmode='group', color_discrete_map={'Tổng học sinh':'#4CAF50','Học sinh bất thường':'#FF5252'},
+                     barmode='group', color_discrete_map={'Tổng học sinh':primary_color,'Học sinh bất thường':anomaly_color},
                      labels={'value':'Số học sinh','Lop':'Lớp'}, title="Tổng học sinh & Học sinh bất thường theo lớp")
     st.plotly_chart(fig_col, use_container_width=True)
 
@@ -165,7 +209,7 @@ if uploaded_file is not None:
 
         # Histogram
         fig_hist = px.histogram(df_filtered, x=subj, nbins=20, color=f'Highlight_{subj}',
-                                color_discrete_map={True:'#FF0000', False:'#4CAF50'},
+                                color_discrete_map={True:hist_anom, False:hist_normal},
                                 labels={'count':'Số học sinh'})
         st.plotly_chart(fig_hist, use_container_width=True)
 
