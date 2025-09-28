@@ -11,28 +11,49 @@ import base64
 # ==========================
 st.set_page_config(page_title="Phân Tích Điểm Bất Thường", layout="wide", page_icon="📊")
 
-# Intro video fullscreen
+# Intro video fullscreen (with fixes)
 try:
     video_file = open("test.mp4", "rb")
     video_bytes = video_file.read()
+    video_file.close()
     video_base64 = base64.b64encode(video_bytes).decode()
     st.markdown(f"""
     <div id="video-container" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:black; z-index:9999; display:flex; align-items:center; justify-content:center;">
-        <video id="intro-video" autoplay playsinline style="max-width:100%; max-height:100%;">
+        <video id="intro-video" autoplay playsinline muted style="max-width:100%; max-height:100%;">
             <source src="data:video/mp4;base64,{video_base64}" type="video/mp4">
+            Your browser does not support the video tag.
         </video>
     </div>
     <script>
         var video = document.getElementById('intro-video');
+        var container = document.getElementById('video-container');
+        
         video.onended = function() {{
-            document.getElementById('video-container').style.display = 'none';
+            container.style.display = 'none';
         }};
+        
+        setTimeout(function() {{
+            if (container.style.display !== 'none') {{
+                container.style.display = 'none';
+            }}
+        }}, 5000);
+        
+        video.onerror = function() {{
+            container.style.display = 'none';
+        }};
+        
+        video.play().catch(function(e) {{
+            console.log('Autoplay prevented:', e);
+            container.style.display = 'none';
+        }});
     </script>
     """, unsafe_allow_html=True)
 except FileNotFoundError:
     st.warning("File test.mp4 not found. Skipping intro video.")
+except Exception as e:
+    st.error(f"Video load error: {e}. Skipping intro.")
 
-# Theme selection
+# Theme selection (rest of your code unchanged)
 theme = st.selectbox("Chọn theme", ["Original", "Castorice", "TealCoral", "VibrantOrange"])
 
 if theme == "Original":
