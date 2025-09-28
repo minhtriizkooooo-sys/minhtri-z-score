@@ -4,22 +4,36 @@ import numpy as np
 from scipy import stats
 import plotly.express as px
 import io
+import base64
 
 # ==========================
 # Cấu hình trang
 # ==========================
 st.set_page_config(page_title="Phân Tích Điểm Bất Thường", layout="wide", page_icon="📊")
 
-# Intro video
+# Intro video fullscreen
 try:
-    with open("test.mp4", "rb") as video_file:
-        video_bytes = video_file.read()
-    st.video(video_bytes)
+    video_file = open("test.mp4", "rb")
+    video_bytes = video_file.read()
+    video_base64 = base64.b64encode(video_bytes).decode()
+    st.markdown(f"""
+    <div id="video-container" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:black; z-index:9999; display:flex; align-items:center; justify-content:center;">
+        <video id="intro-video" autoplay playsinline style="max-width:100%; max-height:100%;">
+            <source src="data:video/mp4;base64,{video_base64}" type="video/mp4">
+        </video>
+    </div>
+    <script>
+        var video = document.getElementById('intro-video');
+        video.onended = function() {{
+            document.getElementById('video-container').style.display = 'none';
+        }};
+    </script>
+    """, unsafe_allow_html=True)
 except FileNotFoundError:
     st.warning("File test.mp4 not found. Skipping intro video.")
 
 # Theme selection
-theme = st.selectbox("Chọn theme", ["Original", "Castorice", "TealCoral"])
+theme = st.selectbox("Chọn theme", ["Original", "Castorice", "TealCoral", "VibrantOrange"])
 
 if theme == "Original":
     css = """
@@ -75,7 +89,7 @@ elif theme == "Castorice":
     anomaly_color = "#9370db"  # Medium purple
     hist_normal = "#dda0dd"  # Plum
     hist_anom = "#4b0082"  # Indigo
-else:  # TealCoral theme
+elif theme == "TealCoral":
     css = """
     <style>
         .main { background-color: #e0f7fa; }  /* Light teal background */
@@ -102,6 +116,33 @@ else:  # TealCoral theme
     anomaly_color = "#ff6f61"  # Coral
     hist_normal = "#26a69a"  # Lighter teal
     hist_anom = "#d81b60"  # Darker coral
+else:  # VibrantOrange theme
+    css = """
+    <style>
+        .main { background-color: #fff3e0; }  /* Light orange background */
+        .stButton>button { background-color: #f57c00; color: white; border-radius: 5px; }  /* Orange buttons */
+        .stFileUploader>label { font-weight: bold; color: #0277bd; }  /* Blue label */
+        .css-1d391kg { background-color: #ffffff; border-radius: 10px; padding: 20px; border: 1px solid #f57c00; }  /* White card with orange border */
+        h1 { color: #ef6c00; }  /* Dark orange headers */
+        h2 { color: #0288d1; }  /* Light blue subheaders */
+        .stAlert { border-radius: 5px; border: 1px solid #0288d1; }  /* Blue alert border */
+        footer { visibility: hidden; }
+        .footer {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            background-color: #ef6c00;  /* Dark orange footer */
+            color: white;
+            text-align: center;
+            padding: 10px;
+        }
+    </style>
+    """
+    primary_color = "#ff9800"  # Orange
+    anomaly_color = "#2196f3"  # Blue
+    hist_normal = "#ffb74d"  # Light orange
+    hist_anom = "#1565c0"  # Dark blue
 
 st.markdown(css, unsafe_allow_html=True)
 
@@ -198,4 +239,54 @@ if uploaded_file is not None:
         anomalies = df_filtered.copy()
         anomalies = anomalies[anomalies[[f'Highlight_{subj}' for subj in subjects]].any(axis=1)]
         st.write("**Học sinh bất thường**")
-        st.dataframe(anomalies[anomaly_cols], use_container_width
+        st.dataframe(anomalies[anomaly_cols], use_container_width=True)
+
+        # Download CSV
+        csv_buffer = io.StringIO()
+        anomalies.to_csv(csv_buffer, index=False, encoding='utf-8')
+        st.download_button("📥 Xuất CSV học sinh bất thường", csv_buffer.getvalue(), file_name="Students_Anomalies.csv")
+
+    # ==========================
+    # Biểu đồ cột tổng học sinh vs học sinh bất thường theo lớp
+    # ==========================
+    st.subheader("📊 Biểu đồ cột theo lớp")
+    class_summary = df_filtered.groupby('Lop').size().reset_index(name='Tổng học sinh')
+    anomaly_count = anomalies.groupby('Lop').size().reset_index(name='Học sinh bất thường')
+    summary = pd.merge(class_summary, anomaly_count, on='Lop', how='left').fillna(0)
+
+    fig_col = px.bar(summary, x='Lop', y=['Tổng học sinh','Học sinh bất thường'],
+                     barmode='group', color_discrete_map={'Tổng học sinh':primary_color,'Học sinh bất thường':anomaly_color},
+                     labels={'value':'Số học sinh','Lop':'Lớp'}, title="Tổng học sinh & Học sinh bất thường theo lớp")
+    st.plotly_chart(fig_col, use_container_width=True)
+
+    # ==========================
+    # Scatter & Histogram từng môn
+    # ==========================
+    st.subheader("📈 Scatter & Histogram theo môn")
+    for subj in subjects:
+        st.markdown(f"### {subj}")
+
+        # Scatter
+        fig_scat = px.scatter(df_filtered, x='MaHS', y=subj, color=f'Z_{subj}',
+                              color_continuous_scale='RdYlGn_r', 
+                              size=df_filtered[f'Z_{subj}'].abs(),
+                              size_max=20,
+                              hover_data={'MaHS':True, subj:True, f'Z_{subj}':True})
+        st.plotly_chart(fig_scat, use_container_width=True)
+
+        # Histogram
+        fig_hist = px.histogram(df_filtered, x=subj, nbins=20, color=f'Highlight_{subj}',
+                                color_discrete_map={True:hist_anom, False:hist_normal},
+                                labels={'count':'Số học sinh'})
+        st.plotly_chart(fig_hist, use_container_width=True)
+
+# ==========================
+# Footer
+# ==========================
+st.markdown("""
+<div class="footer">
+    <p><b>Nhóm Thực Hiện:</b> Lại Nguyễn Minh Trí và những người bạn</p>
+    <p>📞 Liên hệ: 0908-083566 | 📧 Email: laingminhtri@gmail.com</p>
+    <p>© 2025 Trường THPT Marie Curie - Dự án Phân Tích Điểm Bất Thường</p>
+</div>
+""", unsafe_allow_html=True)
