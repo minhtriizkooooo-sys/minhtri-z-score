@@ -19,7 +19,7 @@ except FileNotFoundError:
     st.warning("File test.mp4 not found. Skipping intro video.")
 
 # Theme selection
-theme = st.selectbox("Chọn theme", ["Original", "Castorice"])
+theme = st.selectbox("Chọn theme", ["Original", "Castorice", "TealCoral"])
 
 if theme == "Original":
     css = """
@@ -48,7 +48,7 @@ if theme == "Original":
     anomaly_color = "#FF5252"
     hist_normal = "#4CAF50"
     hist_anom = "#FF0000"
-else:  # Castorice theme with lilac/purple colors
+elif theme == "Castorice":
     css = """
     <style>
         .main { background-color: #e6e6fa; }  /* Lavender */
@@ -72,9 +72,36 @@ else:  # Castorice theme with lilac/purple colors
     </style>
     """
     primary_color = "#c8a2c8"  # Lilac
-    anomaly_color = "#9370db"  # Medium purple for anomalies
+    anomaly_color = "#9370db"  # Medium purple
     hist_normal = "#dda0dd"  # Plum
     hist_anom = "#4b0082"  # Indigo
+else:  # TealCoral theme
+    css = """
+    <style>
+        .main { background-color: #e0f7fa; }  /* Light teal background */
+        .stButton>button { background-color: #008080; color: white; border-radius: 5px; }  /* Teal buttons */
+        .stFileUploader>label { font-weight: bold; color: #ff6f61; }  /* Coral label */
+        .css-1d391kg { background-color: #ffffff; border-radius: 10px; padding: 20px; border: 1px solid #008080; }  /* White card with teal border */
+        h1 { color: #00695c; }  /* Dark teal headers */
+        h2 { color: #ff6f61; }  /* Coral subheaders */
+        .stAlert { border-radius: 5px; border: 1px solid #ff6f61; }  /* Coral alert border */
+        footer { visibility: hidden; }
+        .footer {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            background-color: #00695c;  /* Dark teal footer */
+            color: white;
+            text-align: center;
+            padding: 10px;
+        }
+    </style>
+    """
+    primary_color = "#008080"  # Teal
+    anomaly_color = "#ff6f61"  # Coral
+    hist_normal = "#26a69a"  # Lighter teal
+    hist_anom = "#d81b60"  # Darker coral
 
 st.markdown(css, unsafe_allow_html=True)
 
@@ -169,57 +196,6 @@ if uploaded_file is not None:
         # Tạo bảng bất thường
         anomaly_cols = ['MaHS','Lop'] + [subj for subj in subjects]
         anomalies = df_filtered.copy()
-        # giữ lại học sinh bất thường bất kỳ môn
         anomalies = anomalies[anomalies[[f'Highlight_{subj}' for subj in subjects]].any(axis=1)]
         st.write("**Học sinh bất thường**")
-        st.dataframe(anomalies[anomaly_cols], use_container_width=True)
-
-        # Download CSV
-        csv_buffer = io.StringIO()
-        anomalies.to_csv(csv_buffer, index=False, encoding='utf-8')
-        st.download_button("📥 Xuất CSV học sinh bất thường", csv_buffer.getvalue(), file_name="Students_Anomalies.csv")
-
-    # ==========================
-    # Biểu đồ cột tổng học sinh vs học sinh bất thường theo lớp
-    # ==========================
-    st.subheader("📊 Biểu đồ cột theo lớp")
-    class_summary = df_filtered.groupby('Lop').size().reset_index(name='Tổng học sinh')
-    anomaly_count = anomalies.groupby('Lop').size().reset_index(name='Học sinh bất thường')
-    summary = pd.merge(class_summary, anomaly_count, on='Lop', how='left').fillna(0)
-
-    fig_col = px.bar(summary, x='Lop', y=['Tổng học sinh','Học sinh bất thường'],
-                     barmode='group', color_discrete_map={'Tổng học sinh':primary_color,'Học sinh bất thường':anomaly_color},
-                     labels={'value':'Số học sinh','Lop':'Lớp'}, title="Tổng học sinh & Học sinh bất thường theo lớp")
-    st.plotly_chart(fig_col, use_container_width=True)
-
-    # ==========================
-    # Scatter & Histogram từng môn
-    # ==========================
-    st.subheader("📈 Scatter & Histogram theo môn")
-    for subj in subjects:
-        st.markdown(f"### {subj}")
-
-        # Scatter
-        fig_scat = px.scatter(df_filtered, x='MaHS', y=subj, color=f'Z_{subj}',
-                              color_continuous_scale='RdYlGn_r', 
-                              size=df_filtered[f'Z_{subj}'].abs(),
-                              size_max=20,
-                              hover_data={'MaHS':True, subj:True, f'Z_{subj}':True})
-        st.plotly_chart(fig_scat, use_container_width=True)
-
-        # Histogram
-        fig_hist = px.histogram(df_filtered, x=subj, nbins=20, color=f'Highlight_{subj}',
-                                color_discrete_map={True:hist_anom, False:hist_normal},
-                                labels={'count':'Số học sinh'})
-        st.plotly_chart(fig_hist, use_container_width=True)
-
-# ==========================
-# Footer
-# ==========================
-st.markdown("""
-<div class="footer">
-    <p><b>Nhóm Thực Hiện:</b> Lại Nguyễn Minh Trí và những người bạn</p>
-    <p>📞 Liên hệ: 0908-083566 | 📧 Email: laingminhtri@gmail.com</p>
-    <p>© 2025 Trường THPT Marie Curie - Dự án Phân Tích Điểm Bất Thường</p>
-</div>
-""", unsafe_allow_html=True)
+        st.dataframe(anomalies[anomaly_cols], use_container_width
