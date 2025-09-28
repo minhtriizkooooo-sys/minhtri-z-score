@@ -13,7 +13,7 @@ import os
 st.set_page_config(page_title="Phân Tích Điểm Bất Thường", layout="wide", page_icon="📊")
 
 # Intro video fullscreen (using external URL to avoid Render timeout)
-video_url = "https://raw.githubusercontent.com/minhtriizkooooo-sys/minhtri-z-score/main/test.mp4"  # Replace with your actual GitHub raw URL, e.g., https://raw.githubusercontent.com/laingminhtri/minhtri-z-score/main/test.mp4
+video_url = "https://raw.githubusercontent.com/minhtriizkooooo-sys/minhtri-z-score/main/test.mp4"  # Your GitHub raw URL
 try:
     st.markdown(f"""
     <div id="video-container" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:black; z-index:9999; display:flex; align-items:center; justify-content:center;">
@@ -26,24 +26,24 @@ try:
         var video = document.getElementById('intro-video');
         var container = document.getElementById('video-container');
         
-        video.onended = function() {
+        video.onended = function() {{{{
             container.style.display = 'none';
-        };
+        }}}};
         
-        setTimeout(function() {
-            if (container.style.display !== 'none') {
+        setTimeout(function() {{{{
+            if (container.style.display !== 'none') {{{{
                 container.style.display = 'none';
-            }
-        }, 5000);
+            }}}}
+        }}}}, 5000);
         
-        video.onerror = function() {
+        video.onerror = function() {{{{
             container.style.display = 'none';
-        };
+        }}}};
         
-        video.play().catch(function(e) {
+        video.play().catch(function(e) {{{{
             console.log('Autoplay prevented:', e);
             container.style.display = 'none';
-        });
+        }}}});
     </script>
     """, unsafe_allow_html=True)
 except Exception as e:
@@ -307,4 +307,3 @@ st.markdown("""
     <p>© 2025 Trường THPT Marie Curie - Dự án Phân Tích Điểm Bất Thường</p>
 </div>
 """, unsafe_allow_html=True)
-
